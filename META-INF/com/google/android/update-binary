@@ -14,7 +14,6 @@ OUTFD=/proc/self/fd/$2
 ZIPFILE=$3
 LOCK=/data/system/locksettings*
 FINGERPRINT=/data/system/users/0/settings-fingerprint.xml
-ARCH=$(getprop ro.product.cpu.abi)
 
 #################
 set_progress 0.10;
@@ -33,16 +32,8 @@ ui_print "DEVICE INFO"
 ui_print "| Manufacturer: $(getprop ro.product.manufacturer)";
 ui_print "| Model: $(getprop ro.product.model)";
 ui_print "| Codename: $(getprop ro.product.device)";
-ui_print "| Architecture: $ARCH";
+ui_print "| Architecture: $(getprop ro.product.cpu.abi)";
 sleep 0.5
-
-if [ $ARCH != "arm64-v8a" ] && [ $ARCH != "armeabi-v7a" ]; then
-	ui_print " "
-	ui_print "ERROR!";
-	ui_print "| This zip is only compatible for ARM and ARM64 devices!";
-	ui_print "| Aborting";
-	exit 1	
-fi
 
 ##### SET UP ENVIRONMENT #####
 
@@ -50,8 +41,8 @@ ui_print " "
 ui_print "SETTING UP ENVIRONMENT";
 ui_print "| Unzipping GSI-LOCK-SCREEN-FIX-v2"
 unzip -o $ZIPFILE -d $TMP
-chmod a+x $TMP/bin/$ARCH/magiskboot
-PATH=$PATH:$TMP/bin/$ARCH
+chmod a+x $TMP/bin/magiskboot_arm
+PATH=$PATH:$TMP/bin
 ui_print 
 sleep 1
 
@@ -150,7 +141,7 @@ ui_print "APPLYING FIX";
 ui_print "| Extracting boot image from device";
 dd if=$boot_block of=boot.img
 ui_print "| Unpacking boot image";
-magiskboot unpack -h boot.img
+magiskboot_arm unpack -h boot.img
 set_progress 0.50;
 
 ##### CHANGE SPL OF BOOT IMAGE ####
@@ -165,7 +156,7 @@ sleep 0.5
 ##### REPACK & FLASH NEW BOOT IMAGE #####
 
 ui_print "| Repacking boot image";
-magiskboot repack boot.img
+magiskboot_arm repack boot.img
 set_progress 0.60;
 
 ui_print "| Flashing new boot image";
