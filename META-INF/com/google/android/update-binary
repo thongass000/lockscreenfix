@@ -48,12 +48,10 @@ fi
 
 ui_print " "
 ui_print "SETTING UP ENVIRONMENT";
-mkdir $TMP
-cd $TMP
 ui_print "| Unzipping GSI-LOCK-SCREEN-FIX-v2"
-unzip -o $ZIPFILE
-cd $TMP/bin/$ARCH
-chmod a+x ./magiskboot
+unzip -o $ZIPFILE -d $TMP
+chmod a+x $TMP/bin/$ARCH/magiskboot
+PATH=$PATH:$TMP/bin/$ARCH
 ui_print 
 sleep 1
 
@@ -149,37 +147,34 @@ set_progress 0.40;
 
 ui_print " "
 ui_print "APPLYING FIX";
-cd $TMP/bin/$ARCH
 ui_print "| Extracting boot image from device";
-dd if=$boot_block of=./boot.img
+dd if=$boot_block of=boot.img
 ui_print "| Unpacking boot image";
-./magiskboot unpack -h ./boot.img
+magiskboot unpack -h boot.img
 set_progress 0.50;
 
 ##### CHANGE SPL OF BOOT IMAGE ####
 
-(grep -w ro.build.version.security_patch | cut -d= -f2 | rev | cut -c4- | rev) <$SYSTEM/build.prop > /tmp/os_patch_level
-NEW_OS_LEVEL=$(cat /tmp/os_patch_level)
-OLD_OS_LEVEL=$(grep "os_patch_level" ./header | cut -d "=" -f 2)
+(grep -w ro.build.version.security_patch | cut -d= -f2 | rev | cut -c4- | rev) <$SYSTEM/build.prop > os_patch_level
+NEW_OS_LEVEL=$(cat os_patch_level)
+OLD_OS_LEVEL=$(grep "os_patch_level" header | cut -d "=" -f 2)
 ui_print "| Setting OS patch level of boot image to $NEW_OS_LEVEL";
-sed -i -e "s/$OLD_OS_LEVEL/$NEW_OS_LEVEL/g" ./header
+sed -i -e "s/$OLD_OS_LEVEL/$NEW_OS_LEVEL/g" header
 sleep 0.5
 
 ##### REPACK & FLASH NEW BOOT IMAGE #####
 
 ui_print "| Repacking boot image";
-./magiskboot repack ./boot.img
+magiskboot repack boot.img
 set_progress 0.60;
 
-
 ui_print "| Flashing new boot image";
-dd if=./new-boot.img of=$boot_block
+dd if=new-boot.img of=$boot_block
 set_progress 0.80;
 
 ##### REMOVE RESIDUAL FILES #####
 
 ui_print "| Cleaning up";
-cd /tmp
 rm -rf $TMP
 
 sleep 0.5;
