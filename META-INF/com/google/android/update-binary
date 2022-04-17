@@ -155,7 +155,7 @@ set_progress 0.50;
 
 ##### CHANGE SPL OF BOOT IMAGE ####
 
-(grep -w ro.build.version.security_patch | cut -d= -f2 | rev | cut -c4- | rev) <$SYSTEM/build.prop > os_patch_level
+(grep -w ro.build.version.security_patch | head -1 | cut -d= -f2 | rev | cut -c4- | rev) <$SYSTEM/build.prop > os_patch_level
 NEW_OS_LEVEL=$(cat os_patch_level)
 OLD_OS_LEVEL=$(grep "os_patch_level" header | cut -d "=" -f 2)
 ui_print "| Setting OS patch level of boot image to $NEW_OS_LEVEL";
