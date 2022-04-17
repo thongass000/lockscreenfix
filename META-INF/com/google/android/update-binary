@@ -1,0 +1,210 @@
+#!/sbin/sh
+
+##### PREDEFINED COMPONENTS #####
+
+ui_print() {
+  echo -e "ui_print $1" > "$OUTFD";
+  echo -e "ui_print" > "$OUTFD";
+}
+
+set_progress() { echo "set_progress $1" > "$OUTFD"; }
+
+TMP=/tmp/lockscreenfix
+OUTFD=/proc/self/fd/$2
+ZIPFILE=$3
+LOCK=/data/system/locksettings*
+FINGERPRINT=/data/system/users/0/settings-fingerprint.xml
+ARCH=$(getprop ro.product.cpu.abi)
+
+#################
+set_progress 0.10;
+ui_print " "
+ui_print "GSI SCREEN LOCK FIX v2";
+ui_print "| Fix screen lock on GSI by matching boot.img SPL with system SPL";
+ui_print "| Created by @thongass000";
+ui_print "| Credit to @topjohnwu for magiskboot";
+sleep 1
+
+##### COMPATIBILITY CHECK #####
+
+BRAND=`getprop ro.product.brand`
+ui_print " "
+ui_print "DEVICE INFO"
+ui_print "| Manufacturer: $(getprop ro.product.manufacturer)";
+ui_print "| Model: $(getprop ro.product.model)";
+ui_print "| Codename: $(getprop ro.product.device)";
+ui_print "| Architecture: $ARCH";
+sleep 0.5
+
+if [ $ARCH != "arm64-v8a" ] && [ $ARCH != "armeabi-v7a" ]; then
+	ui_print " "
+	ui_print "ERROR!";
+	ui_print "| This zip is only compatible for ARM and ARM64 devices!";
+	ui_print "| Aborting";
+	exit 1	
+fi
+
+##### SET UP ENVIRONMENT #####
+
+ui_print " "
+ui_print "SETTING UP ENVIRONMENT";
+mkdir $TMP
+cd $TMP
+ui_print "| Unzipping GSI-LOCK-SCREEN-FIX-v2"
+unzip -o $ZIPFILE
+cd $TMP/bin/$ARCH
+chmod a+x ./magiskboot
+ui_print 
+sleep 1
+
+##### UMOUNT SYSTEM #####
+
+umount_system() {
+umount /system
+umount /system_root
+}
+
+umount_partitions;
+set_progress 0.20;
+
+##### DETECT PARTITIONS #####
+
+system_as_root=`getprop ro.build.system_root_image`
+active_slot=`getprop ro.boot.slot_suffix`
+dynamic=`getprop ro.boot.dynamic_partitions`
+
+ui_print " "
+ui_print "MOUNTING SYSTEM"
+
+ui_print "| Detecting Partition Layout";
+
+if [ "$dynamic" = "true" ]; then
+	ui_print "| Dynamic partition detected";
+	if [ ! -z "$active_slot" ]; then
+		system_block=/dev/block/mapper/system$active_slot
+		boot_block=/dev/block/mapper/boot$active_slot
+			else
+		system_block=/dev/block/mapper/system
+		boot_block=/dev/block/mapper/boot
+	fi
+	blockdev --setrw $system_block
+else
+	if [ ! -z "$active_slot" ]; then
+		system_block=`cat /etc/recovery.fstab | grep -o '/dev/[^ ]*system' | cut -f -1 | head -1`$active_slot
+		boot_block=${system_block%????????}boot$active_slot
+		ui_print "| System Block: $system_block";
+		ui_print "| Boot Block: $boot_block";
+			else
+		system_block=`cat /etc/recovery.fstab | grep -o '/dev/[^ ]*system' | cut -f -1 | head -1`
+		boot_block=${system_block%??????}boot
+		ui_print "| System Block: $system_block";
+		ui_print "| Boot Block: $boot_block";
+	fi
+fi
+
+##### DETECT & MOUNT SYSTEM #####
+
+mount_system() {
+mkdir -p /system
+mkdir -p /system_root
+if mount -o rw $system_block /system_root; then
+	if [ -e /system_root/build.prop ]; then
+		MOUNTED=/system_root
+		ui_print "| System as system detected!";
+			else
+		MOUNTED=/system_root/system
+		ui_print "| System as root detected!";
+	fi
+	sleep 0.5;
+	mount -o bind $MOUNTED /system
+	SYSTEM=/system
+	ui_print "| System successfully binded!";
+  else
+    ui_print " "
+    ui_print "ERROR >>> Couldn't mount SYSTEM! Aborting";
+    ui_print " "
+    umount -l /system && umount -l /system_root
+    exit 1
+fi
+}
+
+mount_system;
+sleep 0.5;
+set_progress 0.30;
+
+##### REMOVE PREVIOUS LOCK SCREEN & FINGERPRINT #####
+
+ui_print " "
+ui_print "REMOVING PREVIOUS LOCK SCREEN";
+ui_print "| Removing old lock screen & fingerprint data if exists";
+if [ -f $LOCK ]; then
+	rm -rf $LOCK
+	if [ -f $FINGERPRINT ]; then
+		rm -rf $FINGERPRINT
+	fi
+fi
+set_progress 0.40;
+
+##### OBTAIN & UNPACK BOOT IMAGE #####
+
+ui_print " "
+ui_print "APPLYING FIX";
+cd $TMP/bin/$ARCH
+ui_print "| Extracting boot image from device";
+dd if=$boot_block of=./boot.img
+ui_print "| Unpacking boot image";
+./magiskboot unpack -h ./boot.img
+set_progress 0.50;
+
+##### CHANGE SPL OF BOOT IMAGE ####
+
+(grep -w ro.build.version.security_patch | cut -d= -f2 | rev | cut -c4- | rev) <$SYSTEM/build.prop > /tmp/os_patch_level
+NEW_OS_LEVEL=$(cat /tmp/os_patch_level)
+OLD_OS_LEVEL=$(grep "os_patch_level" ./header | cut -d "=" -f 2)
+ui_print "| Setting OS patch level of boot image to $NEW_OS_LEVEL";
+sed -i -e "s/$OLD_OS_LEVEL/$NEW_OS_LEVEL/g" ./header
+sleep 0.5
+
+##### REPACK & FLASH NEW BOOT IMAGE #####
+
+ui_print "| Repacking boot image";
+./magiskboot repack ./boot.img
+set_progress 0.60;
+
+
+ui_print "| Flashing new boot image";
+dd if=./new-boot.img of=$boot_block
+set_progress 0.80;
+
+##### REMOVE RESIDUAL FILES #####
+
+ui_print "| Cleaning up";
+cd /tmp
+rm -rf $TMP
+
+sleep 0.5;
+set_progress 0.90;
+
+##### UMOUNT AND PRINT #####
+
+ui_print " ";
+ui_print "UNMOUNTING SYSTEM";
+if umount -l /system; then
+	ui_print "| Successfully unmounted /system";
+else
+	ui_print "| Couldn't unmount /system";
+fi
+
+if umount -l /system_root; then
+	ui_print "| Successfully unmounted /system_root";
+else
+	ui_print "| Couldn't unmount /system_root";
+fi
+
+sleep 1.0
+
+##### LAST #####
+
+ui_print "| Enjoy";
+ui_print " ";
+set_progress 1.00;
