@@ -40,6 +40,7 @@ sleep 0.5
 ui_print " "
 ui_print "SETTING UP ENVIRONMENT";
 ui_print "| Unzipping GSI-LOCK-SCREEN-FIX-v2"
+mkdir $TMP
 unzip -o $ZIPFILE -d $TMP
 chmod a+x $TMP/bin/magiskboot_arm
 PATH=$PATH:$TMP/bin
