@@ -145,7 +145,17 @@ sleep 0.5
 
 ui_print "| Repacking boot image";
 magiskboot_arm repack boot.img
-set_progress 0.60;
+STATUS=$(echo $?)
+if [[ $STATUS == 0 ]]; then
+	ui_print "| Boot image successfully patched!";
+	set_progress 0.60;
+else
+	ui_print " "
+	ui_print "ERROR >>> Couldn't patch boot image! Aborting";
+	ui_print " "
+	umount -l /system && umount -l /system_root
+	exit $STATUS
+fi
 
 ui_print "| Flashing new boot image";
 dd if=new-boot.img of=$boot_block
