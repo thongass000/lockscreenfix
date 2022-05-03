@@ -3,17 +3,17 @@
 ##### PREDEFINED COMPONENTS #####
 
 ui_print() {
-  echo -e "ui_print $1" > "$OUTFD";
-  echo -e "ui_print" > "$OUTFD";
+	echo -e "ui_print $1" > "$OUTFD";
+	echo -e "ui_print" > "$OUTFD";
 }
 
-set_progress() { echo "set_progress $1" > "$OUTFD"; }
+set_progress() {
+	echo "set_progress $1" > "$OUTFD";
+}
 
-TMP=/tmp/lockscreenfix
+TMP=/tmp/screenlockfix
 OUTFD=/proc/self/fd/$2
 ZIPFILE=$3
-LOCK=/data/system/locksettings*
-FINGERPRINT=/data/system/users/0/settings-fingerprint.xml
 
 #################
 set_progress 0.10;
@@ -22,7 +22,7 @@ ui_print "GSI SCREEN LOCK FIX v2";
 ui_print "| Fix screen lock on GSI by matching boot.img SPL with system SPL";
 ui_print "| Created by @thongass000";
 ui_print "| Credit to @topjohnwu for magiskboot";
-sleep 1
+sleep 0.5
 
 ##### COMPATIBILITY CHECK #####
 
@@ -39,19 +39,19 @@ sleep 0.5
 
 ui_print " "
 ui_print "SETTING UP ENVIRONMENT";
-ui_print "| Unzipping GSI-LOCK-SCREEN-FIX-v2"
+ui_print "| Unzipping GSI-SCREEN-LOCK-FIX-v2";
 mkdir $TMP
 unzip -o $ZIPFILE -d $TMP
 chmod a+x $TMP/bin/magiskboot_arm
 PATH=$PATH:$TMP/bin
-ui_print 
-sleep 1
+ui_print " "
+sleep 0.5
 
 ##### UMOUNT SYSTEM #####
 
 umount_system() {
-umount /system
-umount /system_root
+	umount /system
+	umount /system_root
 }
 
 umount_partitions;
@@ -64,7 +64,7 @@ active_slot=`getprop ro.boot.slot_suffix`
 dynamic=`getprop ro.boot.dynamic_partitions`
 
 ui_print " "
-ui_print "MOUNTING SYSTEM"
+ui_print "MOUNTING SYSTEM";
 
 ui_print "| Detecting Partition Layout";
 
@@ -73,7 +73,7 @@ if [ "$dynamic" = "true" ]; then
 	if [ ! -z "$active_slot" ]; then
 		system_block=/dev/block/mapper/system$active_slot
 		boot_block=/dev/block/mapper/boot$active_slot
-			else
+	else
 		system_block=/dev/block/mapper/system
 		boot_block=/dev/block/mapper/boot
 	fi
@@ -84,7 +84,7 @@ else
 		boot_block=${system_block%????????}boot$active_slot
 		ui_print "| System Block: $system_block";
 		ui_print "| Boot Block: $boot_block";
-			else
+	else
 		system_block=`cat /etc/recovery.fstab | grep -o '/dev/[^ ]*system' | cut -f -1 | head -1`
 		boot_block=${system_block%??????}boot
 		ui_print "| System Block: $system_block";
@@ -101,39 +101,26 @@ if mount -o rw $system_block /system_root; then
 	if [ -e /system_root/build.prop ]; then
 		MOUNTED=/system_root
 		ui_print "| System as system detected!";
-			else
+	else
 		MOUNTED=/system_root/system
 		ui_print "| System as root detected!";
 	fi
-	sleep 0.5;
+	sleep 0.5
 	mount -o bind $MOUNTED /system
 	SYSTEM=/system
 	ui_print "| System successfully binded!";
-  else
-    ui_print " "
-    ui_print "ERROR >>> Couldn't mount SYSTEM! Aborting";
-    ui_print " "
-    umount -l /system && umount -l /system_root
-    exit 1
+else
+	ui_print " "
+	ui_print "ERROR >>> Couldn't mount SYSTEM! Aborting";
+	ui_print " "
+	umount -l /system && umount -l /system_root
+	exit 1
 fi
 }
 
 mount_system;
-sleep 0.5;
+sleep 0.5
 set_progress 0.30;
-
-##### REMOVE PREVIOUS LOCK SCREEN & FINGERPRINT #####
-
-ui_print " "
-ui_print "REMOVING PREVIOUS LOCK SCREEN";
-ui_print "| Removing old lock screen & fingerprint data if exists";
-if [ -f $LOCK ]; then
-	rm -rf $LOCK
-	if [ -f $FINGERPRINT ]; then
-		rm -rf $FINGERPRINT
-	fi
-fi
-set_progress 0.40;
 
 ##### OBTAIN & UNPACK BOOT IMAGE #####
 
@@ -169,12 +156,12 @@ set_progress 0.80;
 ui_print "| Cleaning up";
 rm -rf $TMP
 
-sleep 0.5;
+sleep 0.5
 set_progress 0.90;
 
 ##### UMOUNT AND PRINT #####
 
-ui_print " ";
+ui_print " "
 ui_print "UNMOUNTING SYSTEM";
 if umount -l /system; then
 	ui_print "| Successfully unmounted /system";
@@ -188,10 +175,10 @@ else
 	ui_print "| Couldn't unmount /system_root";
 fi
 
-sleep 1.0
+sleep 0.5
 
 ##### LAST #####
 
 ui_print "| Enjoy";
-ui_print " ";
+ui_print " "
 set_progress 1.00;
