@@ -18,7 +18,7 @@ ZIPFILE=$3
 #################
 set_progress 0.10;
 ui_print " "
-ui_print "GSI SCREEN LOCK FIX v3";
+ui_print "GSI SCREEN LOCK FIX v3.1";
 ui_print "| Fix screen lock on GSI by matching boot.img SPL with system SPL";
 ui_print "| Created by @thongass000";
 ui_print "| Credit to @topjohnwu for magiskboot";
@@ -39,7 +39,7 @@ sleep 0.5
 
 ui_print " "
 ui_print "SETTING UP ENVIRONMENT";
-ui_print "| Unzipping GSI-SCREEN-LOCK-FIX-v3";
+ui_print "| Unzipping GSI-SCREEN-LOCK-FIX-v3.1";
 mkdir $TMP
 unzip -o $ZIPFILE -d $TMP
 chmod a+x $TMP/bin/magiskboot_arm
